@@ -1,4 +1,5 @@
 import { mapLink, mapSrc, phoneHref, waLink, type SiteContent } from '@/lib/data'
+import HeroRoad from './HeroRoad'
 import Icon, { type IconName } from './Icon'
 import Reveal from './Reveal'
 
@@ -6,7 +7,7 @@ export function Hero({ site }: { site: SiteContent }) {
   const { hero } = site
   return (
     <section id="home" className="hero">
-      <div className="road" aria-hidden="true" />
+      <HeroRoad />
       <div className="wrap hero-in">
         {hero.badge && (
           <p className="badge">

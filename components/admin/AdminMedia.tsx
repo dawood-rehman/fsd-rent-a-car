@@ -2,7 +2,8 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react'
 import type { Vehicle } from '@/lib/data'
 import Icon from '@/components/Icon'
-import { api, resizeImage } from './api'
+import { api } from './api'
+import ImageEditorModal, { type EditedPhoto } from './ImageEditorModal'
 
 type MediaEntry = {
   url: string
@@ -15,6 +16,7 @@ export default function AdminMedia({ active, vehicles }: { active: boolean; vehi
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [dragging, setDragging] = useState(false)
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null)
   const [confirmUrl, setConfirmUrl] = useState<string | null>(null)
   const [confirmCleanup, setConfirmCleanup] = useState(false)
@@ -33,30 +35,37 @@ export default function AdminMedia({ active, vehicles }: { active: boolean; vehi
     if (active) void load()
   }, [active, vehicles.length, load])
 
-  const upload = async (file: File) => {
+  const openEditor = (file: File) => {
+    setMsg(null)
+    setPendingFile(file)
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
+  const uploadEdited = async (edited: EditedPhoto) => {
     setUploading(true)
     setMsg(null)
     try {
-      const { blob, filename, mime } = await resizeImage(file)
       const form = new FormData()
-      form.append('file', new File([blob], filename, { type: mime }))
+      form.append('file', new File([edited.blob], edited.filename, { type: edited.mime }))
       const r = await api<{ url: string }>('/api/admin/upload', 'POST', form)
       if (r.ok) {
-        setMsg({ kind: 'ok', text: 'Photo uploaded & optimized. You can now attach it to any vehicle.' })
+        setPendingFile(null)
+        setMsg({ kind: 'ok', text: 'Photo edited, optimized & uploaded to Media Library.' })
         await load()
       } else {
+        setPendingFile(null)
         setMsg({ kind: 'err', text: r.error })
       }
     } catch (err) {
+      setPendingFile(null)
       setMsg({ kind: 'err', text: (err as Error).message })
     }
     setUploading(false)
-    if (fileRef.current) fileRef.current.value = ''
   }
 
   const onFile = (e: ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
-    if (f) void upload(f)
+    if (f) openEditor(f)
   }
 
   const onDrop = (e: DragEvent<HTMLLabelElement>) => {
@@ -64,7 +73,7 @@ export default function AdminMedia({ active, vehicles }: { active: boolean; vehi
     setDragging(false)
     if (uploading) return
     const f = e.dataTransfer.files?.[0]
-    if (f) void upload(f)
+    if (f) openEditor(f)
   }
 
   const deleteSingle = async (url: string) => {
@@ -160,8 +169,8 @@ export default function AdminMedia({ active, vehicles }: { active: boolean; vehi
             <Icon name={uploading ? 'clock' : 'upload'} size={28} />
           </div>
           <div className="adm-dropzone-content">
-            <strong>{uploading ? 'Uploading and optimizing photo...' : 'Upload new photo to Media Library'}</strong>
-            <p>Click, tap, or drop a JPG, PNG or WebP image (max 5MB)</p>
+            <strong>{uploading ? 'Uploading edited photo...' : 'Upload new photo to Media Library'}</strong>
+            <p>Click, tap, or drop a JPG, PNG or WebP image · Crop, rotate &amp; resize before upload</p>
           </div>
         </label>
 
@@ -242,6 +251,15 @@ export default function AdminMedia({ active, vehicles }: { active: boolean; vehi
           </div>
         )}
       </div>
+
+      {pendingFile && (
+        <ImageEditorModal
+          file={pendingFile}
+          busy={uploading}
+          onCancel={() => setPendingFile(null)}
+          onApply={uploadEdited}
+        />
+      )}
     </div>
   )
 }

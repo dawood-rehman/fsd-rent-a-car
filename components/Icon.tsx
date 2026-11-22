@@ -30,6 +30,13 @@ const P = {
   refresh: 'M21 12a9 9 0 1 1-2.64-6.36L21 8M21 3v5h-5',
   copy: 'M9 9h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2zM5 15H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1',
   tag: 'M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82zM7 7h.01',
+  rotateCcw: 'M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5',
+  rotateCw: 'M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5',
+  flipH: 'M12 3v18M8 7l-5 5 5 5V7zM16 7l5 5-5 5V7z',
+  flipV: 'M3 12h18M7 8l5-5 5 5H7zM7 16l5 5 5-5H7z',
+  crop: 'M6 2v14a2 2 0 0 0 2 2h14M18 22V8a2 2 0 0 0-2-2H2',
+  sliders: 'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6',
+  maximize: 'M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7',
 }
 
 export type IconName = keyof typeof P

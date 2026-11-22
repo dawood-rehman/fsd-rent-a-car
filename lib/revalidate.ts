@@ -1,8 +1,9 @@
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 
-/** Immediately refreshes cached public pages, metadata, sitemap, and manifest after any admin change. */
+/** Immediately refreshes cached public pages, data cache, metadata, sitemap, and manifest after any admin change. */
 export function revalidatePublicSite() {
   try {
+    revalidateTag('site-data', { expire: 0 })
     revalidatePath('/', 'layout')
     revalidatePath('/')
     revalidatePath('/manifest.webmanifest')

@@ -2,7 +2,8 @@
 import { useMemo, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } from 'react'
 import { FUEL_TYPES, pkr, type CategoryItem, type Vehicle } from '@/lib/data'
 import Icon from '@/components/Icon'
-import { api, resizeImage } from './api'
+import { api } from './api'
+import ImageEditorModal, { type EditedPhoto } from './ImageEditorModal'
 
 type Draft = {
   id?: string
@@ -61,6 +62,7 @@ export default function AdminVehicles({
   const [reordering, setReordering] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [dragging, setDragging] = useState(false)
+  const [pendingFile, setPendingFile] = useState<File | Blob | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   // Fleet list filters
@@ -103,32 +105,55 @@ export default function AdminVehicles({
     void api('/api/admin/upload', 'DELETE', { url })
   }
 
-  const uploadFile = async (file: File) => {
+  const openEditorWithFile = (file: File) => {
+    setMsg(null)
+    setPendingFile(file)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const editExistingPhoto = async () => {
+    if (!draft.image) return
+    setUploading(true)
+    setMsg(null)
+    try {
+      const res = await fetch(draft.image)
+      if (!res.ok) throw new Error('Could not load existing photo for editing.')
+      const blob = await res.blob()
+      setPendingFile(blob)
+    } catch (err) {
+      setMsg({ kind: 'err', text: (err as Error).message || 'Could not open photo in editor.' })
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const uploadEdited = async (edited: EditedPhoto) => {
     const prevImage = draft.image
     setUploading(true)
     setMsg(null)
     try {
-      const { blob, filename, mime } = await resizeImage(file)
       const form = new FormData()
-      form.append('file', new File([blob], filename, { type: mime }))
+      form.append('file', new File([edited.blob], edited.filename, { type: edited.mime }))
       const r = await api<{ url: string }>('/api/admin/upload', 'POST', form)
       if (r.ok) {
         discardUnusedUpload(prevImage)
         setDraft((d) => ({ ...d, image: r.data.url }))
         setPickerOpen(false)
+        setPendingFile(null)
       } else {
         setMsg({ kind: 'err', text: r.error })
+        setPendingFile(null)
       }
     } catch (err) {
       setMsg({ kind: 'err', text: (err as Error).message })
+      setPendingFile(null)
     }
     setUploading(false)
-    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) void uploadFile(file)
+    if (file) openEditorWithFile(file)
   }
 
   const handleDrop = (e: DragEvent<HTMLLabelElement>) => {
@@ -136,7 +161,7 @@ export default function AdminVehicles({
     setDragging(false)
     if (uploading) return
     const file = e.dataTransfer.files?.[0]
-    if (file) void uploadFile(file)
+    if (file) openEditorWithFile(file)
   }
 
   const openPicker = async () => {
@@ -460,7 +485,7 @@ export default function AdminVehicles({
                       ? 'Drop image here to upload'
                       : 'Click, tap, or drag a photo here'}
                 </strong>
-                <p>Supports JPG, PNG or WebP up to 5MB · Auto-optimized to WebP for fast loading</p>
+                <p>Supports JPG, PNG or WebP up to 5MB · Crop, rotate, resize &amp; adjust before upload</p>
               </div>
             </label>
           ) : (
@@ -473,6 +498,15 @@ export default function AdminVehicles({
                 </div>
                 <p>Optimized &amp; ready to publish with this vehicle</p>
                 <div className="adm-photo-actions">
+                  <button
+                    type="button"
+                    className="btn ghost sm"
+                    disabled={uploading}
+                    onClick={editExistingPhoto}
+                  >
+                    <Icon name="crop" size={14} />
+                    <span>Edit / Crop</span>
+                  </button>
                   <label htmlFor="vehicle-photo-upload" className="btn ghost sm">
                     <Icon name="upload" size={14} />
                     <span>{uploading ? 'Uploading...' : 'Change Photo'}</span>
@@ -706,6 +740,15 @@ export default function AdminVehicles({
           </div>
         )}
       </div>
+
+      {pendingFile && (
+        <ImageEditorModal
+          file={pendingFile}
+          busy={uploading}
+          onCancel={() => setPendingFile(null)}
+          onApply={uploadEdited}
+        />
+      )}
     </div>
   )
 }

@@ -115,20 +115,25 @@ function parseDb(raw: string): Db {
   }
 }
 
-/** Strict uncached read from storage. Throws on corrupt file or failed cloud call so data is never overwritten. */
-export async function readDb(): Promise<Db> {
+/** Strict read from storage. Throws on corrupt file or failed cloud call so data is never overwritten.
+ *  Pass `{ cached: true }` for public ISR reads so Next.js keeps `/` statically cached with on-demand revalidation. */
+export async function readDb(opts?: { cached?: boolean }): Promise<Db> {
   const cfg = supaConfig()
   let db: Db
   if (cfg) {
-    await ensureBuckets(cfg)
     const res = await fetch(`${cfg.url}/storage/v1/object/${DATA_BUCKET}/db.json`, {
       headers: supaHeaders(cfg.key),
-      cache: 'no-store',
+      ...(opts?.cached ? { next: { revalidate: 300, tags: ['site-data'] } } : { cache: 'no-store' as const }),
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     })
     if (res.status === 404 || res.status === 400) {
       const txt = await res.text()
-      if (res.status === 404 || txt.includes('not_found') || txt.includes('Object not found')) {
+      if (
+        res.status === 404 ||
+        txt.includes('not_found') ||
+        txt.includes('Object not found') ||
+        txt.includes('Bucket not found')
+      ) {
         db = empty()
       } else {
         throw new Error(`Supabase read failed: ${res.status}`)
@@ -162,7 +167,7 @@ async function readDbCached(): Promise<Db> {
     return store.cachedDb
   }
   if (!store.inflightRead) {
-    store.inflightRead = readDb().finally(() => {
+    store.inflightRead = readDb({ cached: true }).finally(() => {
       store.inflightRead = null
     })
   }
