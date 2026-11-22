@@ -1,12 +1,20 @@
 import type { NextRequest } from 'next/server'
-import { adminConfigured, checkPassword, clearFailures, endSession, recordFailure, startSession, tooManyAttempts } from '@/lib/auth'
-import { bad, ok, readJson } from '@/lib/api'
-
-const ipOf = (req: NextRequest) => req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'local'
+import {
+  adminConfigured,
+  checkPassword,
+  clearFailures,
+  endSession,
+  recordFailure,
+  startSession,
+  tooManyAttempts,
+} from '@/lib/auth'
+import { bad, isSameOrigin, ok, readJson } from '@/lib/api'
+import { getClientIp } from '@/lib/rateLimit'
 
 export async function POST(req: NextRequest) {
+  if (!isSameOrigin(req)) return bad('Forbidden request origin.', 403)
   if (!adminConfigured()) return bad('Admin is not configured. Set ADMIN_PASSWORD in .env.local.', 503)
-  const ip = ipOf(req)
+  const ip = getClientIp(req)
   if (tooManyAttempts(ip)) return bad('Too many attempts. Try again in a few minutes.', 429)
   const body = (await readJson(req)) as { password?: unknown } | null
   if (typeof body?.password !== 'string' || !checkPassword(body.password)) {
@@ -19,7 +27,8 @@ export async function POST(req: NextRequest) {
   return ok()
 }
 
-export async function DELETE() {
+export async function DELETE(req: NextRequest) {
+  if (!isSameOrigin(req)) return bad('Forbidden request origin.', 403)
   await endSession()
   return ok()
 }

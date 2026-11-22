@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="6" y1="4" x2="58" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#33271e" />
+      <stop offset="100%" stop-color="#171210" />
+    </linearGradient>
+    <linearGradient id="roof" x1="16" y1="15" x2="48" y2="30" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#e5c382" />
+      <stop offset="100%" stop-color="#b57029" />
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#bg)" stroke="#c9a15a" stroke-opacity="0.45" stroke-width="2" />
+  <!-- Sleek roofline & pillars -->
+  <path
+    d="M15.5 30L20.4 19.6C21.3 17.8 23.1 16.6 25.1 16.6H38.9C40.9 16.6 42.7 17.8 43.6 19.6L48.5 30"
+    stroke="url(#roof)"
+    stroke-width="3.2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <!-- Windshield -->
+  <path
+    d="M19.2 29L22.5 21.4C23 20.2 24.2 19.5 25.5 19.5H38.5C39.8 19.5 41 20.2 41.5 21.4L44.8 29H19.2Z"
+    fill="#fdfaf3"
+    fill-opacity="0.14"
+  />
+  <!-- Side mirrors -->
+  <path d="M15 28H12M52 28H49" stroke="#c9a15a" stroke-width="2.5" stroke-linecap="round" />
+  <!-- Tires behind bumper -->
+  <rect x="13" y="40.5" width="8.5" height="8" rx="2.5" fill="#9a531a" />
+  <rect x="42.5" y="40.5" width="8.5" height="8" rx="2.5" fill="#9a531a" />
+  <!-- Car body / front fascia -->
+  <rect x="10.5" y="28.8" width="43" height="14.5" rx="5" fill="#fdfaf3" />
+  <!-- Sculpted grille -->
+  <rect x="23" y="34.2" width="18" height="5.2" rx="2.6" fill="#231d19" />
+  <line x1="26.5" y1="36.8" x2="37.5" y2="36.8" stroke="#c9a15a" stroke-width="1.6" stroke-linecap="round" />
+  <!-- Headlights -->
+  <rect x="14" y="34.2" width="6.2" height="4.2" rx="2.1" fill="#c9a15a" />
+  <rect x="43.8" y="34.2" width="6.2" height="4.2" rx="2.1" fill="#c9a15a" />
+  <!-- Subtle road line -->
+  <path d="M14 53H50" stroke="#c9a15a" stroke-width="2" stroke-linecap="round" stroke-opacity="0.55" />
+</svg>

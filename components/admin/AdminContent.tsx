@@ -1,6 +1,6 @@
 'use client'
-import { useState, type FormEvent } from 'react'
-import type { Point, SiteContent } from '@/lib/data'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { slugifyCategoryId, type CategoryItem, type Point, type SiteContent, type Vehicle } from '@/lib/data'
 import Icon from '@/components/Icon'
 import { api } from './api'
 
@@ -20,6 +20,15 @@ function PointsEditor({
   const upd = (i: number, patch: Partial<Point>) =>
     onChange(items.map((p, j) => (j === i ? { ...p, ...patch } : p)))
 
+  const move = (i: number, dir: -1 | 1) => {
+    const t = i + dir
+    if (t < 0 || t >= items.length) return
+    const next = [...items]
+    const [item] = next.splice(i, 1)
+    next.splice(t, 0, item)
+    onChange(next)
+  }
+
   return (
     <div className="adm-points-editor">
       <div className="adm-points-head">
@@ -35,7 +44,44 @@ function PointsEditor({
       <div className="adm-points-list">
         {items.map((p, i) => (
           <div className="adm-point-card" key={i}>
-            <div className="adm-point-number">#{i + 1}</div>
+            <div className="adm-point-top">
+              <div className="adm-point-number">#{i + 1}</div>
+              <div className="adm-point-controls">
+                {items.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      className="adm-btn-icon"
+                      disabled={i === 0}
+                      title="Move up"
+                      aria-label={`Move point ${i + 1} up`}
+                      onClick={() => move(i, -1)}
+                    >
+                      <Icon name="chevronUp" size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className="adm-btn-icon"
+                      disabled={i === items.length - 1}
+                      title="Move down"
+                      aria-label={`Move point ${i + 1} down`}
+                      onClick={() => move(i, 1)}
+                    >
+                      <Icon name="chevronDown" size={16} />
+                    </button>
+                  </>
+                )}
+                <button
+                  type="button"
+                  className="adm-btn-icon danger"
+                  title="Delete this point"
+                  aria-label={`Delete point ${i + 1}`}
+                  onClick={() => onChange(items.filter((_, j) => j !== i))}
+                >
+                  <Icon name="trash" size={16} />
+                </button>
+              </div>
+            </div>
             <div className="adm-point-inputs">
               <label className="adm-field">
                 <span className="adm-label">Title</span>
@@ -57,14 +103,6 @@ function PointsEditor({
                 />
               </label>
             </div>
-            <button
-              type="button"
-              className="adm-btn-icon danger"
-              title="Delete this point"
-              onClick={() => onChange(items.filter((_, j) => j !== i))}
-            >
-              <Icon name="trash" size={16} />
-            </button>
           </div>
         ))}
       </div>
@@ -83,10 +121,180 @@ function PointsEditor({
   )
 }
 
-export default function AdminContent({ initial }: { initial: SiteContent }) {
-  const [s, setS] = useState(initial)
+function CategoriesEditor({
+  categories,
+  vehicles,
+  onChange,
+}: {
+  categories: CategoryItem[]
+  vehicles: Vehicle[]
+  onChange: (next: CategoryItem[]) => void
+}) {
+  const counts = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const v of vehicles) map.set(v.category, (map.get(v.category) ?? 0) + 1)
+    return map
+  }, [vehicles])
+
+  const update = (i: number, patch: Partial<CategoryItem>) => {
+    onChange(categories.map((c, j) => (j === i ? { ...c, ...patch } : c)))
+  }
+
+  const move = (i: number, dir: -1 | 1) => {
+    const t = i + dir
+    if (t < 0 || t >= categories.length) return
+    const next = [...categories]
+    const [item] = next.splice(i, 1)
+    next.splice(t, 0, item)
+    onChange(next)
+  }
+
+  const add = () => {
+    const num = categories.length + 1
+    let id = `category-${num}`
+    while (categories.some((c) => c.id === id)) id = `category-${num}-${Math.random().toString(36).slice(2, 5)}`
+    onChange([...categories, { id, label: '', tag: '' }])
+  }
+
+  return (
+    <div className="adm-points-editor">
+      <div className="adm-points-head">
+        <div>
+          <h4>Vehicle Categories</h4>
+          <p className="adm-hint">
+            Add, rename, reorder, or remove categories shown in the fleet filter pills and vehicle dropdown.
+          </p>
+        </div>
+        <span className="adm-counter">{categories.length} / 12</span>
+      </div>
+
+      <div className="adm-points-list">
+        {categories.map((c, i) => {
+          const usedCount = counts.get(c.id) ?? 0
+          return (
+            <div className="adm-point-card" key={c.id}>
+              <div className="adm-point-top">
+                <div className="adm-cat-head-meta">
+                  <span className="adm-point-number">#{i + 1}</span>
+                  <span className="adm-counter">
+                    {usedCount} {usedCount === 1 ? 'car' : 'cars'}
+                  </span>
+                </div>
+                <div className="adm-point-controls">
+                  {categories.length > 1 && (
+                    <>
+                      <button
+                        type="button"
+                        className="adm-btn-icon"
+                        disabled={i === 0}
+                        title="Move up"
+                        aria-label={`Move category ${c.label || i + 1} up`}
+                        onClick={() => move(i, -1)}
+                      >
+                        <Icon name="chevronUp" size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        className="adm-btn-icon"
+                        disabled={i === categories.length - 1}
+                        title="Move down"
+                        aria-label={`Move category ${c.label || i + 1} down`}
+                        onClick={() => move(i, 1)}
+                      >
+                        <Icon name="chevronDown" size={16} />
+                      </button>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    className="adm-btn-icon danger"
+                    disabled={categories.length <= 1 || usedCount > 0}
+                    title={
+                      usedCount > 0
+                        ? `Reassign ${usedCount} vehicle(s) before deleting this category`
+                        : categories.length <= 1
+                          ? 'Keep at least one category'
+                          : 'Delete category'
+                    }
+                    aria-label={`Delete category ${c.label || i + 1}`}
+                    onClick={() => onChange(categories.filter((_, j) => j !== i))}
+                  >
+                    <Icon name="trash" size={16} />
+                  </button>
+                </div>
+              </div>
+              <div className="adm-fields-grid">
+                <label className="adm-field">
+                  <span className="adm-label">Category Filter Label *</span>
+                  <input
+                    value={c.label}
+                    maxLength={40}
+                    placeholder="e.g. Luxury & Protocol"
+                    required
+                    onChange={(e) => {
+                      const label = e.target.value
+                      const isNewId = c.id.startsWith('category-')
+                      const nextId = isNewId && usedCount === 0 ? slugifyCategoryId(label) || c.id : c.id
+                      update(i, {
+                        label,
+                        ...(nextId !== c.id && !categories.some((x) => x.id === nextId) ? { id: nextId } : {}),
+                      })
+                    }}
+                  />
+                </label>
+                <label className="adm-field">
+                  <span className="adm-label">Short Card Badge Tag *</span>
+                  <input
+                    value={c.tag}
+                    maxLength={20}
+                    placeholder="e.g. Luxury"
+                    required
+                    onChange={(e) => update(i, { tag: e.target.value })}
+                  />
+                </label>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {categories.length < 12 && (
+        <button type="button" className="btn ghost sm adm-add-point-btn" onClick={add}>
+          <Icon name="plus" size={14} />
+          <span>Add category</span>
+        </button>
+      )}
+    </div>
+  )
+}
+
+export default function AdminContent({
+  site,
+  vehicles,
+  onSiteChange,
+}: {
+  site: SiteContent
+  vehicles: Vehicle[]
+  onSiteChange: (next: SiteContent) => void
+}) {
+  const [s, setS] = useState<SiteContent>(site)
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
   const [busy, setBusy] = useState(false)
+
+  const dirty = useMemo(() => JSON.stringify(s) !== JSON.stringify(site), [s, site])
+
+  useEffect(() => {
+    if (!dirty) setS(site)
+  }, [site, dirty])
+
+  useEffect(() => {
+    if (!dirty) return
+    const onUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+    }
+    window.addEventListener('beforeunload', onUnload)
+    return () => window.removeEventListener('beforeunload', onUnload)
+  }, [dirty])
 
   const top = (k: keyof SiteContent) => ({
     value: (s[k] as string) || '',
@@ -96,7 +304,7 @@ export default function AdminContent({ initial }: { initial: SiteContent }) {
     },
   })
 
-  const nest = <K extends 'hero' | 'fleet' | 'about' | 'features' | 'cta'>(
+  const nest = <K extends 'hero' | 'booking' | 'fleet' | 'about' | 'features' | 'cta' | 'contact'>(
     g: K,
     k: keyof SiteContent[K]
   ) => ({
@@ -115,7 +323,8 @@ export default function AdminContent({ initial }: { initial: SiteContent }) {
     setBusy(false)
     if (r.ok) {
       setS(r.data.site)
-      setMsg({ kind: 'ok', text: 'All changes saved & published to website successfully!' })
+      onSiteChange(r.data.site)
+      setMsg({ kind: 'ok', text: 'All changes saved & published to website immediately!' })
     } else {
       setMsg({ kind: 'err', text: r.error })
     }
@@ -129,10 +338,10 @@ export default function AdminContent({ initial }: { initial: SiteContent }) {
           <div className="adm-card-icon">
             <Icon name="pin" size={20} />
           </div>
-          <div>
-            <h2>Business & Contact Information</h2>
+          <div className="adm-card-title-group">
+            <h2>Business &amp; Contact Information</h2>
             <p className="adm-card-desc">
-              Your company identity, phone numbers, WhatsApp, and Google Map location
+              Your company identity, phone numbers, WhatsApp, operating hours, and Google Map location
             </p>
           </div>
         </div>
@@ -160,13 +369,8 @@ export default function AdminContent({ initial }: { initial: SiteContent }) {
 
           <label className="adm-field">
             <span className="adm-label">WhatsApp Number (with country code) *</span>
-            <input
-              {...top('whatsapp')}
-              inputMode="numeric"
-              placeholder="e.g. 923036262705"
-              required
-            />
-            <span className="adm-hint">Without + or spaces. Direct link will open to this number.</span>
+            <input {...top('whatsapp')} inputMode="numeric" placeholder="e.g. 923036262705" required />
+            <span className="adm-hint">Without + or spaces. Direct links open to this number.</span>
           </label>
 
           <label className="adm-field">
@@ -176,20 +380,25 @@ export default function AdminContent({ initial }: { initial: SiteContent }) {
 
           <label className="adm-field">
             <span className="adm-label">Email Address (optional)</span>
-            <input
-              type="email"
-              {...top('email')}
-              maxLength={120}
-              placeholder="e.g. info@rentacarfsd.com"
-            />
+            <input type="email" {...top('email')} maxLength={120} placeholder="e.g. info@rentacarfsd.com" />
+          </label>
+
+          <label className="adm-field">
+            <span className="adm-label">Business Hours (optional)</span>
+            <input {...top('hours')} maxLength={120} placeholder="e.g. Open Daily · 24 Hours" />
           </label>
 
           <label className="adm-field">
             <span className="adm-label">Google Maps Search Location</span>
+            <input {...top('mapQuery')} maxLength={200} placeholder="e.g. Millat Chowk, Faisalabad" />
+          </label>
+
+          <label className="adm-field">
+            <span className="adm-label">Default WhatsApp Greeting</span>
             <input
-              {...top('mapQuery')}
-              maxLength={200}
-              placeholder="e.g. Millat Chowk, Faisalabad"
+              {...top('whatsappMessage')}
+              maxLength={240}
+              placeholder="e.g. Hello, I would like to book a car."
             />
           </label>
         </div>
@@ -205,7 +414,7 @@ export default function AdminContent({ initial }: { initial: SiteContent }) {
           </label>
 
           <label className="adm-field">
-            <span className="adm-label">Short Description (Search Engines & Footer)</span>
+            <span className="adm-label">Short Description (Search Engines &amp; Footer)</span>
             <textarea
               rows={2}
               {...top('description')}
@@ -222,39 +431,27 @@ export default function AdminContent({ initial }: { initial: SiteContent }) {
           <div className="adm-card-icon">
             <Icon name="sparkles" size={20} />
           </div>
-          <div>
+          <div className="adm-card-title-group">
             <h2>Hero Banner (Top of Homepage)</h2>
-            <p className="adm-card-desc">The first headline, highlighted words, and summary visitors see</p>
+            <p className="adm-card-desc">The main headline, highlighted second line, summary, and hero button text</p>
           </div>
         </div>
 
         <div className="adm-single-column-fields">
           <label className="adm-field">
             <span className="adm-label">Small Badge Pill Text (optional)</span>
-            <input
-              {...nest('hero', 'badge')}
-              maxLength={90}
-              placeholder="e.g. Faisalabad · Punjab, Pakistan"
-            />
+            <input {...nest('hero', 'badge')} maxLength={90} placeholder="e.g. Faisalabad · Punjab, Pakistan" />
           </label>
 
           <div className="adm-fields-grid">
             <label className="adm-field">
               <span className="adm-label">Main Headline</span>
-              <input
-                {...nest('hero', 'title')}
-                maxLength={120}
-                placeholder="e.g. Rent a car in Faisalabad,"
-              />
+              <input {...nest('hero', 'title')} maxLength={120} placeholder="e.g. Rent a car in Faisalabad," />
             </label>
 
             <label className="adm-field">
               <span className="adm-label">Highlighted Second Line (Gold italic)</span>
-              <input
-                {...nest('hero', 'accent')}
-                maxLength={120}
-                placeholder="e.g. booked in one message."
-              />
+              <input {...nest('hero', 'accent')} maxLength={120} placeholder="e.g. booked in one message." />
             </label>
           </div>
 
@@ -267,30 +464,89 @@ export default function AdminContent({ initial }: { initial: SiteContent }) {
               placeholder="Explain self-drive, chauffeur services, or quick booking..."
             />
           </label>
+
+          <div className="adm-fields-grid">
+            <label className="adm-field">
+              <span className="adm-label">Primary Button Text</span>
+              <input {...nest('hero', 'primaryCta')} maxLength={40} placeholder="View Our Fleet" />
+            </label>
+            <label className="adm-field">
+              <span className="adm-label">WhatsApp Button Text</span>
+              <input {...nest('hero', 'secondaryCta')} maxLength={40} placeholder="Book on WhatsApp" />
+            </label>
+          </div>
         </div>
       </div>
 
-      {/* 3. FLEET SECTION */}
+      {/* 3. SERVICE MODES SELECTOR */}
       <div className="adm-card">
         <div className="adm-card-header">
           <div className="adm-card-icon">
-            <Icon name="car" size={20} />
+            <Icon name="wheel" size={20} />
           </div>
-          <div>
-            <h2>Fleet Section Header</h2>
-            <p className="adm-card-desc">Headings displayed right above your vehicle cards</p>
+          <div className="adm-card-title-group">
+            <h2>Service Selector (Self-Drive &amp; Chauffeur)</h2>
+            <p className="adm-card-desc">Customize the travel mode cards shown right above the fleet</p>
           </div>
         </div>
 
         <div className="adm-single-column-fields">
+          <div className="adm-fields-grid">
+            <label className="adm-field">
+              <span className="adm-label">Section Eyebrow</span>
+              <input {...nest('booking', 'eyebrow')} maxLength={60} placeholder="Choose a service" />
+            </label>
+            <label className="adm-field">
+              <span className="adm-label">Section Heading</span>
+              <input {...nest('booking', 'heading')} maxLength={120} placeholder="How would you like to travel?" />
+            </label>
+            <label className="adm-field">
+              <span className="adm-label">Self-Drive Card Title</span>
+              <input {...nest('booking', 'selfDriveLabel')} maxLength={40} placeholder="Self-Drive" />
+            </label>
+            <label className="adm-field">
+              <span className="adm-label">Self-Drive Description</span>
+              <input {...nest('booking', 'selfDriveText')} maxLength={140} />
+            </label>
+            <label className="adm-field">
+              <span className="adm-label">Chauffeur Card Title</span>
+              <input {...nest('booking', 'chauffeurLabel')} maxLength={40} placeholder="With Chauffeur" />
+            </label>
+            <label className="adm-field">
+              <span className="adm-label">Chauffeur Description</span>
+              <input {...nest('booking', 'chauffeurText')} maxLength={140} />
+            </label>
+          </div>
           <label className="adm-field">
-            <span className="adm-label">Section Heading</span>
-            <input
-              {...nest('fleet', 'heading')}
-              maxLength={120}
-              placeholder="e.g. Check out our fleet"
-            />
+            <span className="adm-label">Helper Note Below Cards</span>
+            <input {...nest('booking', 'note')} maxLength={140} placeholder="Prices differ by service." />
           </label>
+        </div>
+      </div>
+
+      {/* 4. FLEET SECTION & CATEGORIES */}
+      <div className="adm-card">
+        <div className="adm-card-header">
+          <div className="adm-card-icon">
+            <Icon name="tag" size={20} />
+          </div>
+          <div className="adm-card-title-group">
+            <h2>Fleet Section &amp; Categories</h2>
+            <p className="adm-card-desc">Headings, empty-fleet notice, and full control over vehicle categories</p>
+          </div>
+        </div>
+
+        <div className="adm-single-column-fields">
+          <div className="adm-fields-grid">
+            <label className="adm-field">
+              <span className="adm-label">Section Eyebrow</span>
+              <input {...nest('fleet', 'eyebrow')} maxLength={60} placeholder="The collection" />
+            </label>
+            <label className="adm-field">
+              <span className="adm-label">Section Heading</span>
+              <input {...nest('fleet', 'heading')} maxLength={120} placeholder="e.g. Check out our fleet" />
+            </label>
+          </div>
 
           <label className="adm-field">
             <span className="adm-label">Introductory Subtext</span>
@@ -301,30 +557,50 @@ export default function AdminContent({ initial }: { initial: SiteContent }) {
               placeholder="e.g. Pick a vehicle and send your booking request on WhatsApp."
             />
           </label>
+
+          <label className="adm-field">
+            <span className="adm-label">Empty Fleet Notice</span>
+            <input
+              {...nest('fleet', 'emptyText')}
+              maxLength={240}
+              placeholder="Shown when no vehicles are currently available online"
+            />
+          </label>
+
+          <CategoriesEditor
+            categories={s.categories}
+            vehicles={vehicles}
+            onChange={(categories) => {
+              setS({ ...s, categories })
+              setMsg(null)
+            }}
+          />
         </div>
       </div>
 
-      {/* 4. ABOUT SECTION */}
+      {/* 5. ABOUT SECTION */}
       <div className="adm-card">
         <div className="adm-card-header">
           <div className="adm-card-icon">
             <Icon name="user" size={20} />
           </div>
-          <div>
+          <div className="adm-card-title-group">
             <h2>About Us Section</h2>
-            <p className="adm-card-desc">Company background, service philosophy, and highlight points</p>
+            <p className="adm-card-desc">Company background, highlight quote, and numbered feature points</p>
           </div>
         </div>
 
         <div className="adm-single-column-fields">
-          <label className="adm-field">
-            <span className="adm-label">Section Heading</span>
-            <input
-              {...nest('about', 'heading')}
-              maxLength={120}
-              placeholder="e.g. About Rent a Car Faisalabad"
-            />
-          </label>
+          <div className="adm-fields-grid">
+            <label className="adm-field">
+              <span className="adm-label">Section Eyebrow</span>
+              <input {...nest('about', 'eyebrow')} maxLength={60} placeholder="About us" />
+            </label>
+            <label className="adm-field">
+              <span className="adm-label">Section Heading</span>
+              <input {...nest('about', 'heading')} maxLength={120} placeholder="e.g. About Rent a Car Faisalabad" />
+            </label>
+          </div>
 
           <label className="adm-field">
             <span className="adm-label">About Description Paragraph</span>
@@ -360,29 +636,31 @@ export default function AdminContent({ initial }: { initial: SiteContent }) {
         </div>
       </div>
 
-      {/* 5. WHY CHOOSE US SECTION */}
+      {/* 6. WHY CHOOSE US SECTION */}
       <div className="adm-card">
         <div className="adm-card-header">
           <div className="adm-card-icon">
             <Icon name="shield" size={20} />
           </div>
-          <div>
+          <div className="adm-card-title-group">
             <h2>“Why Choose Us” Section</h2>
             <p className="adm-card-desc">
-              Three or more key customer promises. (Section is automatically hidden if no items exist)
+              Customer promises rendered with numbered badges. Automatically hidden if no items exist.
             </p>
           </div>
         </div>
 
         <div className="adm-single-column-fields">
-          <label className="adm-field">
-            <span className="adm-label">Section Heading</span>
-            <input
-              {...nest('features', 'heading')}
-              maxLength={120}
-              placeholder="e.g. Why riders choose us"
-            />
-          </label>
+          <div className="adm-fields-grid">
+            <label className="adm-field">
+              <span className="adm-label">Section Eyebrow</span>
+              <input {...nest('features', 'eyebrow')} maxLength={60} placeholder="Why choose us" />
+            </label>
+            <label className="adm-field">
+              <span className="adm-label">Section Heading</span>
+              <input {...nest('features', 'heading')} maxLength={120} placeholder="e.g. Why riders choose us" />
+            </label>
+          </div>
 
           <PointsEditor
             label="Service Promises"
@@ -397,26 +675,35 @@ export default function AdminContent({ initial }: { initial: SiteContent }) {
         </div>
       </div>
 
-      {/* 6. BOTTOM CALL TO ACTION BANNER */}
+      {/* 7. BOTTOM CALL TO ACTION BANNER */}
       <div className="adm-card">
         <div className="adm-card-header">
           <div className="adm-card-icon">
             <Icon name="phone" size={20} />
           </div>
-          <div>
+          <div className="adm-card-title-group">
             <h2>Bottom Call-To-Action Banner</h2>
-            <p className="adm-card-desc">The high-converting banner shown before the contact area</p>
+            <p className="adm-card-desc">
+              Banner shown before the contact section. Clear both Headline and Description to hide it.
+            </p>
           </div>
         </div>
 
         <div className="adm-single-column-fields">
+          <div className="adm-fields-grid">
+            <label className="adm-field">
+              <span className="adm-label">Eyebrow</span>
+              <input {...nest('cta', 'eyebrow')} maxLength={60} placeholder="Ready to book?" />
+            </label>
+            <label className="adm-field">
+              <span className="adm-label">WhatsApp Button Text</span>
+              <input {...nest('cta', 'primaryCta')} maxLength={40} placeholder="Message Us Now" />
+            </label>
+          </div>
+
           <label className="adm-field">
             <span className="adm-label">Headline</span>
-            <input
-              {...nest('cta', 'heading')}
-              maxLength={120}
-              placeholder="e.g. Pick your ride and send us a message."
-            />
+            <input {...nest('cta', 'heading')} maxLength={120} placeholder="e.g. Pick your ride and send us a message." />
           </label>
 
           <label className="adm-field">
@@ -431,23 +718,70 @@ export default function AdminContent({ initial }: { initial: SiteContent }) {
         </div>
       </div>
 
-      {/* FIXED DOCKED FLOATING ACTION BAR - WITH AMPLE CLEARANCE */}
+      {/* 8. CONTACT & FOOTER */}
+      <div className="adm-card">
+        <div className="adm-card-header">
+          <div className="adm-card-icon">
+            <Icon name="layout" size={20} />
+          </div>
+          <div className="adm-card-title-group">
+            <h2>Contact Section &amp; Footer</h2>
+            <p className="adm-card-desc">Customize the contact headings and footer copyright line</p>
+          </div>
+        </div>
+
+        <div className="adm-single-column-fields">
+          <div className="adm-fields-grid">
+            <label className="adm-field">
+              <span className="adm-label">Contact Eyebrow</span>
+              <input {...nest('contact', 'eyebrow')} maxLength={60} placeholder="Get in touch" />
+            </label>
+            <label className="adm-field">
+              <span className="adm-label">Contact Heading</span>
+              <input {...nest('contact', 'heading')} maxLength={120} placeholder="Visit, call, or send a message" />
+            </label>
+          </div>
+          <label className="adm-field">
+            <span className="adm-label">Custom Footer Notice (optional)</span>
+            <input
+              {...top('footerNote')}
+              maxLength={180}
+              placeholder={`Leave blank to use "© ${new Date().getFullYear()} ${s.name}. All rights reserved."`}
+            />
+          </label>
+        </div>
+      </div>
+
+      {/* FIXED DOCKED FLOATING ACTION BAR */}
       <div className="adm-docked-bar-spacer" aria-hidden="true" />
       <div className="adm-docked-bar">
         <div className="adm-docked-bar-in">
           {msg ? (
-            <div className={`adm-alert-compact ${msg.kind}`}>
+            <div className={`adm-alert-compact ${msg.kind}`} role="status">
               <Icon name={msg.kind === 'ok' ? 'check' : 'alert'} size={16} />
               <span>{msg.text}</span>
             </div>
           ) : (
             <div className="adm-docked-status">
-              <span className="dot on" />
-              <span>Website Content Editor</span>
+              <span className={`dot ${dirty ? 'dirty' : ''}`} />
+              <span>{dirty ? 'Unsaved changes ready to publish' : 'All changes published'}</span>
             </div>
           )}
 
           <div className="adm-docked-actions">
+            {dirty && (
+              <button
+                type="button"
+                className="btn ghost sm"
+                disabled={busy}
+                onClick={() => {
+                  setS(site)
+                  setMsg(null)
+                }}
+              >
+                Discard
+              </button>
+            )}
             <button className="btn copper lg" type="submit" disabled={busy}>
               <Icon name="check" size={18} />
               <span>{busy ? 'Saving...' : 'Save & Publish Changes'}</span>
